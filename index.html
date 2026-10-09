@@ -1,0 +1,735 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="OptiMed Body &amp; Mind behavioral health referral router for North Carolina and South Carolina. No patient information.">
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%2313294B'/%3E%3Cpath d='M16 44 L32 20 L48 44' fill='none' stroke='%23fff' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='32' cy='20' r='4' fill='%23fff'/%3E%3C/svg%3E">
+<style>
+/* Baseline the Artifact platform normally supplies */
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+<title>OptiMed Referral Router</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout: pinned crisis bar, then a two-column console — controls left, live routing right. Stacks at phone width. */
+:root{
+  --navy:#13294B; --blue:#2F6FB3; --sky:#E6EEF8; --paper:#FFFFFF; --page:#F2F5FA;
+  --ink:#1B2433; --muted:#5A6678; --rule:#D3DCE8; --field:#FFFFFF;
+  --alert:#8E1F1F; --alert-bg:#13294B; --alert-ink:#FFFFFF; --alert-sub:#B9CBE4;
+  --flag:#9A6200; --flag-bg:#FBF1DE;
+  --ui:"Public Sans",system-ui,-apple-system,"Segoe UI",Arial,sans-serif;
+  --data:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --navy:#9CC0EC; --blue:#7FB0EA; --sky:#1B2A40; --paper:#141C28; --page:#0D131C;
+    --ink:#E4EAF2; --muted:#A3B0C2; --rule:#2B384B; --field:#1B2533;
+    --alert:#FF8B8B; --alert-bg:#1F3A63; --alert-ink:#FFFFFF; --alert-sub:#C3D5EC;
+    --flag:#F0B75A; --flag-bg:#3A2C12;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --navy:#9CC0EC; --blue:#7FB0EA; --sky:#1B2A40; --paper:#141C28; --page:#0D131C;
+  --ink:#E4EAF2; --muted:#A3B0C2; --rule:#2B384B; --field:#1B2533;
+  --alert:#FF8B8B; --alert-bg:#1F3A63; --alert-ink:#FFFFFF; --alert-sub:#C3D5EC;
+  --flag:#F0B75A; --flag-bg:#3A2C12;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);font-family:var(--ui);font-size:15px;line-height:1.5}
+a{color:var(--blue)}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px;border-radius:3px}
+
+/* Crisis bar — always present, never surfaced by logic */
+.crisis{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--alert-bg);color:var(--alert-ink)}
+.crisis-in{max-width:1180px;margin:0 auto;padding:10px 20px;display:flex;align-items:center;gap:10px 22px;flex-wrap:wrap}
+.crisis-tag{font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--alert-sub);border:1px solid rgba(255,255,255,.35);padding:3px 8px;border-radius:3px}
+.crisis-item{display:flex;align-items:baseline;gap:7px;min-width:0}
+.crisis-item b{font-family:var(--data);font-size:15px;font-weight:600;letter-spacing:-.01em}
+.crisis-item span{font-size:12.5px;color:var(--alert-sub)}
+
+.wrap{max-width:1180px;margin:0 auto;padding-inline:20px;padding-block:26px 40px}
+header.top{border-bottom:2px solid var(--navy);padding-bottom:16px;margin-bottom:22px}
+.brand{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--blue);margin:0 0 7px}
+h1{margin:0 0 8px;font-size:30px;line-height:1.08;font-weight:800;color:var(--navy);letter-spacing:-.018em;text-wrap:balance}
+.sub{margin:0;font-size:14px;color:var(--muted);max-width:68ch}
+.phi{display:inline-flex;align-items:center;gap:7px;margin-top:11px;font-size:12.5px;font-weight:600;color:var(--navy);background:var(--sky);border:1px solid var(--rule);padding:5px 11px;border-radius:999px}
+.phi::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--blue);flex:none}
+
+.console{display:grid;grid-template-columns:330px minmax(0,1fr);gap:28px;align-items:start}
+.panel{background:var(--paper);border:1px solid var(--rule);border-radius:8px;padding:18px}
+.controls{position:sticky;top:calc(env(safe-area-inset-top,0px) + 62px)}
+fieldset{border:0;padding:0;margin:0 0 17px;min-width:0}
+legend{padding:0;font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:7px}
+label.fl{display:block;font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+select{width:100%;font-family:var(--ui);font-size:14.5px;color:var(--ink);background:var(--field);border:1px solid var(--rule);border-radius:5px;padding:9px 10px}
+.hint{font-size:12px;color:var(--muted);margin:6px 0 0;line-height:1.4}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg label{font-size:13px;padding:6px 11px;border:1px solid var(--rule);border-radius:999px;cursor:pointer;background:var(--field);color:var(--muted);user-select:none}
+.seg input{position:absolute;opacity:0;width:0;height:0}
+.seg input:checked + span{color:inherit}
+.seg label:has(input:checked){background:var(--navy);border-color:var(--navy);color:var(--paper);font-weight:600}
+.seg label:has(input:focus-visible){outline:2px solid var(--blue);outline-offset:2px}
+
+/* Results */
+.resbar{display:flex;justify-content:space-between;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:12px}
+h2{margin:0;font-size:19px;font-weight:800;color:var(--navy);letter-spacing:-.01em}
+.example{font-size:12.5px;color:var(--flag);background:var(--flag-bg);padding:3px 9px;border-radius:3px;font-weight:600}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap}
+button{font-family:var(--ui);font-size:13px;font-weight:600;color:var(--navy);background:var(--paper);border:1px solid var(--rule);border-radius:5px;padding:7px 13px;cursor:pointer}
+button:hover{border-color:var(--blue);color:var(--blue)}
+button.primary{background:var(--navy);border-color:var(--navy);color:var(--paper)}
+button.primary:hover{background:var(--blue);border-color:var(--blue);color:#fff}
+
+.card{background:var(--paper);border:1px solid var(--rule);border-radius:8px;padding:16px 18px;margin-bottom:12px}
+.card.lead{border-left:5px solid var(--navy)}
+.ctag{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--blue);margin:0 0 5px}
+.card h3{margin:0 0 3px;font-size:17px;font-weight:700;color:var(--ink);letter-spacing:-.01em}
+.card p{margin:5px 0 0;font-size:13.5px;color:var(--muted);max-width:72ch}
+.nums{display:flex;flex-wrap:wrap;gap:6px 20px;margin-top:9px}
+.num{display:flex;align-items:baseline;gap:7px}
+.num .k{font-size:11.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.num .v{font-family:var(--data);font-size:15px;font-weight:600;color:var(--navy);letter-spacing:-.01em}
+.say{margin-top:10px;padding:9px 12px;background:var(--sky);border-radius:5px;font-size:13px;color:var(--ink)}
+.say b{font-weight:700;color:var(--navy)}
+.flag{display:inline-block;margin-top:9px;font-size:12.5px;font-weight:600;color:var(--flag);background:var(--flag-bg);padding:4px 10px;border-radius:4px}
+.sublist{list-style:none;margin:10px 0 0;padding:0;border-top:1px solid var(--rule)}
+.sublist li{padding:8px 0;border-bottom:1px solid var(--rule);display:flex;justify-content:space-between;gap:14px;align-items:baseline;flex-wrap:wrap}
+.sublist li:last-child{border-bottom:0;padding-bottom:0}
+.sublist .n{font-weight:600;font-size:14px;min-width:0}
+.sublist .d{font-size:12.5px;color:var(--muted);flex:1 1 100%;margin-top:1px}
+.sublist .t{font-family:var(--data);font-size:14px;font-weight:600;color:var(--navy);white-space:nowrap}
+
+.tally{margin-top:26px;border-top:1px solid var(--rule);padding-top:16px}
+.tally h2{font-size:16px;margin-bottom:3px}
+.tally p.lead2{font-size:12.5px;color:var(--muted);margin:0 0 11px;max-width:72ch}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th{text-align:left;font-size:11.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--navy);padding:0 12px 6px 0}
+td{border-bottom:1px solid var(--rule);padding:7px 12px 7px 0;vertical-align:top}
+td.c{font-family:var(--data);font-weight:600;color:var(--navy);text-align:right;width:1%;padding-right:0}
+.empty{font-size:13px;color:var(--muted);font-style:normal;padding:10px 0}
+
+footer{margin-top:34px;border-top:1px solid var(--rule);padding-top:14px;font-size:12.5px;color:var(--muted)}
+footer p{margin:0 0 6px;max-width:80ch}
+.verified{font-family:var(--data);font-size:12px;color:var(--muted)}
+
+@media (max-width:860px){
+  .console{grid-template-columns:1fr;gap:22px}
+  .controls{position:static}
+  h1{font-size:25px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="crisis">
+  <div class="crisis-in">
+    <span class="crisis-tag">Always available</span>
+    <span class="crisis-item"><b>911</b><span>imminent danger &middot; ask for CIT</span></span>
+    <span class="crisis-item"><b>988</b><span>call or text, 24/7</span></span>
+    <span class="crisis-item"><b id="mcNum">833-364-2274</b><span id="mcLbl">SC mobile crisis</span></span>
+    <span class="crisis-item"><b>741741</b><span>text HOME</span></span>
+  </div>
+</div>
+
+<div class="wrap">
+
+<header class="top">
+  <p class="brand">OptiMed Body &amp; Mind</p>
+  <h1>Referral Router</h1>
+  <p class="sub">Turns the behavioral health referral guides into a routing step: county, payer, age and the level of care you judge is needed, and this returns the specific door and number to call. It routes. It does not assess risk, and it does not replace your clinical judgment.</p>
+  <span class="phi">No patient information. Structured selections only, nothing stored or sent.</span>
+</header>
+
+<div class="console">
+
+  <form class="panel controls" id="form" autocomplete="off">
+    <fieldset>
+      <label class="fl" for="state">State</label>
+      <select id="state">
+        <option value="NC" selected>North Carolina</option>
+        <option value="SC">South Carolina</option>
+      </select>
+    </fieldset>
+
+    <fieldset>
+      <label class="fl" for="county">County</label>
+      <select id="county"></select>
+    </fieldset>
+
+    <fieldset>
+      <label class="fl" for="payer">Coverage</label>
+      <select id="payer">
+        <option value="tailored">Medicaid — Tailored Plan</option>
+        <option value="medicaid">Medicaid — Standard Plan</option>
+        <option value="commercial">Commercial</option>
+        <option value="medicare">Medicare</option>
+        <option value="none">Uninsured or self-pay</option>
+      </select>
+    </fieldset>
+
+    <fieldset>
+      <label class="fl" for="age">Age</label>
+      <select id="age">
+        <option value="child">Under 18</option>
+        <option value="adult" selected>18 to 64</option>
+        <option value="older">65 and over</option>
+      </select>
+    </fieldset>
+
+    <fieldset>
+      <label class="fl" for="loc">Level of care needed</label>
+      <select id="loc">
+        <option value="routine">Routine outpatient</option>
+        <option value="community">Community-based intensive</option>
+        <option value="iop" selected>IOP or PHP</option>
+        <option value="urgent">Urgent, not an emergency</option>
+        <option value="crisis">Active crisis now</option>
+      </select>
+      <p class="hint">Your assessment, not the tool's. Crisis numbers stay on screen at every setting.</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Specialty need</legend>
+      <div class="seg" id="spec">
+        <label><input type="checkbox" value="sud"><span>Substance use</span></label>
+        <label><input type="checkbox" value="perinatal"><span>Perinatal</span></label>
+        <label><input type="checkbox" value="eating"><span>Eating disorder</span></label>
+        <label><input type="checkbox" value="trauma"><span>Trauma</span></label>
+        <label><input type="checkbox" value="ocd"><span>OCD</span></label>
+        <label><input type="checkbox" value="dbt"><span>DBT</span></label>
+        <label><input type="checkbox" value="lgbtq"><span>LGBTQ+</span></label>
+        <label><input type="checkbox" value="veteran"><span>Veteran</span></label>
+        <label><input type="checkbox" value="gambling"><span>Gambling</span></label>
+        <label><input type="checkbox" value="violence"><span>Violence or assault</span></label>
+      </div>
+    </fieldset>
+  </form>
+
+  <div>
+    <div class="resbar">
+      <h2>Where to send</h2>
+      <span class="example" id="exampleTag">Example selection — change any field</span>
+      <div class="btnrow">
+        <button type="button" class="primary" id="copyBtn">Copy for note</button>
+        <button type="button" id="logBtn">Log this referral</button>
+      </div>
+    </div>
+
+    <div id="results"></div>
+
+    <div class="tally">
+      <h2>Referral pattern</h2>
+      <p class="lead2">Counts stay on this device and never leave the browser. Real aggregation across the team needs a shared store, which is a Phase 2 decision.</p>
+      <div id="tallyBody"></div>
+      <div class="btnrow" style="margin-top:12px">
+        <button type="button" id="copyTally">Copy counts</button>
+        <button type="button" id="clearTally">Clear</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <p><b>Before this goes live:</b> one named owner, a quarterly review, and a verified date on every entry. Partners and Vaya are consolidating this month, and South Carolina's agency merger is still settling, so routing that is correct today will drift.</p>
+  <p class="verified">Routing data verified October 2026 &middot; sources: NCDHHS LME/MCO directory, SC BHDD center directory</p>
+</footer>
+
+</div>
+
+<script>
+"use strict";
+
+var NC_ORGS = {
+  alliance:{name:"Alliance Health",kind:"LME/MCO",crisis:"877-223-4617",main:"919-651-8401",site:"alliancehealthplan.org"},
+  partners:{name:"Partners Health Management",kind:"LME/MCO",crisis:"833-353-2093",main:"888-235-4673",site:"partnersbhm.org",merging:true},
+  trillium:{name:"Trillium Health Resources",kind:"LME/MCO",crisis:"888-302-0738",main:"866-998-2597",site:"trilliumhealthresources.org"},
+  vaya:{name:"Vaya Health",kind:"LME/MCO",crisis:"800-849-6127",main:"828-225-2785",site:"vayahealth.com",merging:true}
+};
+var NC_MAP = {
+  alliance:["Cumberland","Durham","Harnett","Johnston","Mecklenburg","Orange","Wake"],
+  partners:["Burke","Cabarrus","Catawba","Cleveland","Davidson","Davie","Forsyth","Gaston","Iredell","Lincoln","Rutherford","Stanly","Surry","Union","Yadkin"],
+  trillium:["Anson","Beaufort","Bertie","Bladen","Brunswick","Camden","Carteret","Chowan","Columbus","Craven","Currituck","Dare","Duplin","Edgecombe","Gates","Greene","Guilford","Halifax","Hertford","Hoke","Hyde","Jones","Lee","Lenoir","Martin","Montgomery","Moore","Nash","New Hanover","Northampton","Onslow","Pamlico","Pasquotank","Pender","Perquimans","Pitt","Randolph","Richmond","Robeson","Sampson","Scotland","Tyrrell","Warren","Washington","Wayne","Wilson"],
+  vaya:["Alamance","Alexander","Alleghany","Ashe","Avery","Buncombe","Caldwell","Caswell","Chatham","Cherokee","Clay","Franklin","Graham","Granville","Haywood","Henderson","Jackson","Macon","Madison","McDowell","Mitchell","Person","Polk","Rockingham","Rowan","Stokes","Swain","Transylvania","Vance","Watauga","Wilkes","Yancey"]
+};
+
+var SC_CENTERS = [
+  {name:"Aiken-Barnwell Mental Health Center",phone:"803-641-7700",counties:["Aiken","Barnwell"]},
+  {name:"Anderson-Oconee-Pickens Mental Health Center",phone:"864-260-2220",counties:["Anderson","Oconee","Pickens"]},
+  {name:"Beckman Center for Mental Health Services",phone:"864-229-7120",counties:["Abbeville","Edgefield","Greenwood","Laurens","McCormick","Newberry","Saluda"]},
+  {name:"Berkeley Community Mental Health Center",phone:"843-761-8282",counties:["Berkeley"]},
+  {name:"Catawba Community Mental Health Center",phone:"803-328-9600",counties:["Chester","Lancaster","York"]},
+  {name:"Charleston-Dorchester Mental Health Center",phone:"843-852-4100",counties:["Charleston","Dorchester"]},
+  {name:"Coastal Empire Community Mental Health Center",phone:"843-524-8899",counties:["Allendale","Beaufort","Colleton","Hampton","Jasper"]},
+  {name:"Columbia Area Mental Health Center",phone:"803-898-4800",counties:["Fairfield","Richland"]},
+  {name:"Greater Greenville Mental Health Center",phone:"864-241-1040",counties:["Greenville"]},
+  {name:"Lexington County Community Mental Health Center",phone:"803-996-1500",counties:["Lexington"]},
+  {name:"Orangeburg Area Mental Health Center",phone:"803-536-1571",counties:["Bamberg","Calhoun","Orangeburg"]},
+  {name:"Pee Dee Mental Health Center",phone:"843-317-4073",counties:["Darlington","Florence","Marion"]},
+  {name:"Santee-Wateree Community Mental Health Center",phone:"803-775-9364",counties:["Clarendon","Kershaw","Lee","Sumter"]},
+  {name:"Spartanburg Area Mental Health Center",phone:"864-585-0366",counties:["Cherokee","Spartanburg","Union"]},
+  {name:"Tri-County Community Mental Health Center",phone:"843-454-0841",counties:["Chesterfield","Dillon","Marlboro"]},
+  {name:"Waccamaw Center for Mental Health",phone:"843-347-5060",counties:["Georgetown","Horry","Williamsburg"]}
+];
+
+var ncCounty = {}, scCounty = {};
+Object.keys(NC_MAP).forEach(function(k){ NC_MAP[k].forEach(function(c){ ncCounty[c]=k; }); });
+SC_CENTERS.forEach(function(c){ c.counties.forEach(function(n){ scCounty[n]=c; }); });
+var NC_COUNTIES = Object.keys(ncCounty).sort();
+var SC_COUNTIES = Object.keys(scCounty).sort();
+
+var LOC_LABEL = {
+  routine:"Routine outpatient", community:"Community-based intensive",
+  iop:"IOP or PHP", urgent:"Urgent, not an emergency", crisis:"Active crisis now"
+};
+var PAYER_LABEL = {
+  tailored:"Medicaid — Tailored Plan", medicaid:"Medicaid — Standard Plan",
+  commercial:"Commercial", medicare:"Medicare", none:"Uninsured or self-pay"
+};
+var AGE_LABEL = { child:"Under 18", adult:"18 to 64", older:"65 and over" };
+var SPEC_LABEL = {
+  sud:"Substance use", perinatal:"Perinatal", eating:"Eating disorder", trauma:"Trauma",
+  ocd:"OCD", dbt:"DBT", lgbtq:"LGBTQ+", veteran:"Veteran", gambling:"Gambling", violence:"Violence or assault"
+};
+
+var $ = function(id){ return document.getElementById(id); };
+var touched = false;
+
+function fillCounties(state, preferred){
+  var list = state === "NC" ? NC_COUNTIES : SC_COUNTIES;
+  var sel = $("county");
+  sel.innerHTML = "";
+  list.forEach(function(c){
+    var o = document.createElement("option");
+    o.value = c; o.textContent = c;
+    if (c === preferred) o.selected = true;
+    sel.appendChild(o);
+  });
+}
+
+function readState(){
+  var specs = [];
+  Array.prototype.forEach.call(document.querySelectorAll("#spec input:checked"), function(i){ specs.push(i.value); });
+  return {
+    state: $("state").value, county: $("county").value, payer: $("payer").value,
+    age: $("age").value, loc: $("loc").value, specs: specs
+  };
+}
+
+function publicDoor(s){
+  if (s.state === "NC"){
+    var org = NC_ORGS[ncCounty[s.county]];
+    return org ? {
+      tag:"Public system door", name:org.name, meta:s.county + " County " + org.kind,
+      nums:[["Main",org.main],["24/7 crisis",org.crisis]],
+      site:org.site, merging:org.merging
+    } : null;
+  }
+  var c = scCounty[s.county];
+  return c ? {
+    tag:"Public system door", name:c.name, meta:s.county + " County community mental health center",
+    nums:[["Main",c.phone]], site:"bhdd.sc.gov"
+  } : null;
+}
+
+function locGuidance(s){
+  var nc = s.state === "NC";
+  var pub = nc ? "the LME/MCO" : "the mental health center";
+  var g = {
+    routine:{
+      h:"Routine outpatient",
+      p:"Therapy, medication management, or both, on a weekly-or-less cadence.",
+      say:"Ask for an intake appointment and the first available slot. Note whether the patient needs telehealth, evening hours, or Spanish."
+    },
+    community:{
+      h:"Community-based intensive services",
+      p: nc
+        ? "ACT, Community Support Team, Intensive In-Home for youth, or care management. For serious mental illness, repeat crises, or patients who disengage."
+        : "ACT, community support, and child and adolescent programs run through the center. For serious mental illness, repeat crises, or patients who disengage.",
+      say:"Ask for a care manager and a service array review. Say plainly why outpatient alone has not held."
+    },
+    iop:{
+      h:"IOP or partial hospitalization",
+      p:"Roughly 3 hours a day, 3 or more days a week for IOP; full weekdays for PHP. For symptoms not responding to weekly care in a patient who is safe at home.",
+      say:"Ask for the next IOP or PHP start date, the age band served, and whether they take this coverage. Start dates are usually weekly, not daily."
+    },
+    urgent:{
+      h:"Urgent, needs to be seen soon",
+      p: nc
+        ? "Behavioral health urgent care takes walk-ins, ages 4 and up, with observation up to 23 hours. Open access clinics offer same-day appointments."
+        : "Mobile crisis can assess on site anywhere in the state, and the mental health center can often work a patient in same-week.",
+      say:"Ask for the soonest walk-in or open-access slot today. Confirm the address and hours before the patient leaves."
+    },
+    crisis:{
+      h:"Active crisis",
+      p: nc
+        ? "Mobile crisis responds free, 24/7, wherever the patient is. Behavioral health urgent care and facility-based crisis centers take walk-ins without an appointment or insurance."
+        : "SC Mobile Crisis responds free, 24/7/365, statewide, with on-site assessment and law enforcement coordination when needed.",
+      say:"Call the crisis line with the patient still on the line with you. Confirm their exact current location first."
+    }
+  }[s.loc];
+
+  var extra = [];
+  if (s.loc === "crisis" || s.loc === "urgent"){
+    if (nc){
+      extra.push({n:"Community crisis center finder",d:"Nearest BHUC or facility-based crisis center by city or zip",t:"ncdhhs.gov"});
+      extra.push({n:"Mobile crisis",d:"Dispatched through the LME/MCO crisis line above, or 988",t:"988"});
+    } else {
+      extra.push({n:"SC Mobile Crisis",d:"24/7/365 statewide, on-site assessment, also the after-hours emergency commitment line",t:"833-364-2274"});
+      extra.push({n:"Deaf services hotline",d:"Video phone, crisis resources and telepsychiatry interpreters",t:"803-339-3339"});
+    }
+  }
+  if (s.loc === "crisis"){
+    extra.push(nc
+      ? {n:"Involuntary commitment",d:"Petition filed with the county magistrate; certified examiner completes the first exam",t:"County"}
+      : {n:"Emergency commitment",d:"Counselor screens first, then the probate court issues an order of detention",t:"County"});
+  }
+  if (s.loc === "iop" && nc && (s.payer === "medicaid" || s.payer === "tailored" || s.payer === "none")){
+    extra.push({n:"SAIOP and SACOT",d:"The NC Medicaid substance use equivalents of IOP and PHP",t:"Via LME/MCO"});
+  }
+  return {g:g, extra:extra, pub:pub};
+}
+
+function payerCard(s){
+  var nc = s.state === "NC";
+  if (s.payer === "commercial" || s.payer === "medicare"){
+    return {
+      tag:"Coverage route",
+      name: s.payer === "medicare" ? "Medicare behavioral health benefit" : "The plan's behavioral health line",
+      meta:"Number on the back of the patient's card",
+      p: nc
+        ? "Routine, IOP and PHP referrals go through the plan's network, not the LME/MCO. Crisis services do not work that way: mobile crisis, behavioral health urgent care, 988 and the county crisis line serve everyone regardless of coverage."
+        : "Routine, IOP and PHP referrals go through the plan's network. The community mental health center still accepts commercial coverage in most counties, and SC Mobile Crisis serves everyone regardless of coverage.",
+      say:"Ask for in-network options with current openings, not just a directory list. Ask directly whether they hold a waitlist."
+    };
+  }
+  if (s.payer === "none"){
+    return {
+      tag:"Coverage route",
+      name:"Uninsured pathway",
+      meta: nc ? "Sliding scale through the LME/MCO network" : "Sliding scale at the mental health center",
+      p: nc
+        ? "The LME/MCO manages state-funded services for uninsured patients. Crisis centers take patients without insurance. The state ADATCs accept any NC adult regardless of ability to pay."
+        : "The mental health centers and county alcohol and drug authorities both use sliding-scale fees, and ability to pay does not gate admission.",
+      say:"Ask about state-funded slots and the sliding scale at intake, and whether a Medicaid application can be started at the same visit.",
+      extra: nc
+        ? [{n:"NC Medicaid Contact Center",d:"Apply by phone",t:"888-245-0179"},{n:"NC 211",d:"Housing, food, utilities, transportation",t:"211"}]
+        : [{n:"SC Healthy Connections",d:"Medicaid eligibility and applications",t:"888-549-0820"},{n:"SC 211",d:"Housing, food, utilities, transportation",t:"211"}]
+    };
+  }
+  if (nc && s.payer === "tailored"){
+    return {
+      tag:"Coverage route", name:"Tailored Plan", meta:"Widest service array in NC Medicaid",
+      p:"Tailored Plans cover in-home services, care for traumatic brain injury and I/DD, caregiver respite, and come with a case manager who can arrange transportation and help with housing.",
+      say:"Ask the LME/MCO to confirm Tailored Plan enrollment and assign a care manager if the patient does not have one."
+    };
+  }
+  if (nc && s.payer === "medicaid"){
+    return {
+      tag:"Coverage route", name:"Standard Plan", meta:"Move to a Tailored Plan if the need is greater",
+      p:"If the patient has had psychiatric hospitalizations or needs intensive community services, a provider form can request a transfer to a Tailored Plan for the wider service array.",
+      say:"Ask the LME/MCO whether this patient meets Tailored Plan criteria, and request the provider transfer form.",
+      extra:[{n:"NC Medicaid Enrollment Broker",d:"Plan options and transfers",t:"833-870-5500"}]
+    };
+  }
+  return {
+    tag:"Coverage route", name:"Healthy Connections Medicaid", meta:"South Carolina",
+    p:"The community mental health centers and county alcohol and drug authorities are the publicly funded network. Managed care plan questions go to Healthy Connections Choices.",
+    say:"Confirm which managed care plan the patient is in before scheduling, since networks differ.",
+    extra:[{n:"Healthy Connections Choices",d:"Choosing or changing a plan, weekdays 8 to 6",t:"877-552-4642"}]
+  };
+}
+
+function ageExtras(s){
+  var nc = s.state === "NC", out = [];
+  if (s.age === "child"){
+    if (nc){
+      out.push({n:"NC-PAL pediatric line",d:"Provider-to-provider child psychiatry consult, weekdays 8 to 5. Not for patients to call.",t:"919-681-2909"});
+      out.push({n:"MORES",d:"Youth mobile crisis with follow-up, available in 20+ counties",t:"Via LME/MCO"});
+      if (s.loc === "community") out.push({n:"Intensive In-Home and MST",d:"Youth-specific community services through the LME/MCO",t:"Via LME/MCO"});
+    } else {
+      out.push({n:"Center child and adolescent division",d:"Every SC center has one; several run school-based programs",t:"See above"});
+    }
+    out.push({n:"Behavioral health urgent care age floor",d: nc ? "NC crisis centers take ages 4 and up" : "Confirm the age band before sending a minor",t:"Confirm"});
+  }
+  if (s.age === "older"){
+    out.push({n:"Geriatric psychiatry",d:"Confirm the program accepts Medicare and screens for cognitive impairment before referring",t:"Confirm"});
+  }
+  return out;
+}
+
+function specCards(s){
+  var nc = s.state === "NC", cards = [];
+  var add = function(h, items, note){ cards.push({h:h, items:items, note:note}); };
+
+  if (s.specs.indexOf("sud") > -1){
+    add("Substance use", nc ? [
+      {n:"LME/MCO substance use network",d:"SAIOP, SACOT, withdrawal management and MOUD for Medicaid and uninsured patients",t:"See above"},
+      {n:"Julian F. Keith ADATC, Black Mountain",d:"Admissions. Detox, psychiatric stabilization, rehab, inpatient MOUD, perinatal program.",t:"828-257-6230"},
+      {n:"Walter B. Jones ADATC, Greenville",d:"Inpatient admissions. Includes Lakeside Psychiatric and Woodside detox.",t:"252-707-5009"},
+      {n:"SAMHSA National Helpline",d:"24/7 treatment referral, English and Spanish",t:"800-662-4357"}
+    ] : [
+      {n:"County alcohol and drug authority",d:"31 authorities cover all 46 counties. Assessment, outpatient, IOP, withdrawal management.",t:"803-896-5555"},
+      {n:"Morris Village, Columbia",d:"Adult inpatient alcohol and drug addiction treatment",t:"Via BHDD"},
+      {n:"SAMHSA National Helpline",d:"24/7 treatment referral, English and Spanish",t:"800-662-4357"}
+    ], "Offer naloxone to anyone using opioids and to their household. Available without a prescription at pharmacies in both states.");
+  }
+  if (s.specs.indexOf("perinatal") > -1){
+    add("Perinatal and postpartum", nc ? [
+      {n:"NC MATTERS via NC-PAL",d:"Free perinatal psychiatry consult for providers, weekdays 8 to 5. Psychiatrist callback within 30 minutes. Not for patients to call.",t:"919-681-2909"},
+      {n:"National Maternal Mental Health Hotline",d:"24/7 call or text, English and Spanish",t:"833-852-6262"},
+      {n:"Postpartum Support International",d:"HelpLine, free online groups, PMH-C clinician directory",t:"800-944-4773"},
+      {n:"UNC Perinatal Psychiatry Inpatient Unit",d:"Chapel Hill. Inpatient care for pregnant and postpartum patients.",t:"Referral"}
+    ] : [
+      {n:"National Maternal Mental Health Hotline",d:"24/7 call or text, English and Spanish",t:"833-852-6262"},
+      {n:"Postpartum Support International",d:"HelpLine, free online groups, PMH-C clinician directory",t:"800-944-4773"},
+      {n:"MUSC Women's Reproductive Behavioral Health",d:"Charleston. Specialty perinatal psychiatry and therapy.",t:"Referral"}
+    ]);
+  }
+  if (s.specs.indexOf("eating") > -1){
+    add("Eating disorders", [
+      {n:"ANAD Helpline",d:"Peer support and free support groups",t:"888-375-7767"},
+      nc ? {n:"UNC Center of Excellence for Eating Disorders",d:"Chapel Hill. Outpatient, PHP and inpatient.",t:"Referral"}
+         : {n:"MUSC Friedman Center for Eating Disorders",d:"Charleston. Assessment and outpatient treatment.",t:"Referral"}
+    ], "Confirm medical stability and a recent set of vitals and labs before an outpatient referral.");
+  }
+  if (s.specs.indexOf("trauma") > -1){
+    add("Trauma", [
+      {n:"EMDRIA therapist directory",d:"Clinicians trained and certified in EMDR",t:"emdria.org"},
+      nc ? {n:"NC Child Treatment Program",d:"TF-CBT clinician roster for youth trauma",t:"ncchildtreatmentprogram.org"}
+         : {n:"MUSC National Crime Victims Center",d:"TF-CBT and youth trauma treatment",t:"Referral"}
+    ]);
+  }
+  if (s.specs.indexOf("ocd") > -1){
+    add("OCD", [{n:"IOCDF resource directory",d:"Clinicians delivering exposure and response prevention",t:"iocdf.org"}],
+      "General CBT is not ERP. Confirm the clinician actually delivers ERP before referring.");
+  }
+  if (s.specs.indexOf("dbt") > -1){
+    add("DBT", [{n:"DBT-Linehan Board of Certification",d:"Clinicians certified in adherent DBT",t:"dbt-lbc.org"}],
+      "Ask whether the program is full DBT with skills group and phone coaching, or DBT-informed individual therapy only.");
+  }
+  if (s.specs.indexOf("lgbtq") > -1){
+    add("LGBTQ+", [
+      {n:"The Trevor Project",d:"24/7 crisis support for LGBTQ+ young people",t:"866-488-7386"},
+      {n:"Trans Lifeline",d:"Peer support run by trans people",t:"877-565-8860"}
+    ]);
+  }
+  if (s.specs.indexOf("veteran") > -1){
+    add("Veterans", [
+      {n:"Veterans Crisis Line",d:"Press 1 after dialing, or text 838255",t:"988"},
+      nc ? {n:"VA medical centers",d:"Asheville, Durham, Fayetteville, Salisbury",t:"Referral"}
+         : {n:"VA medical centers",d:"Columbia and Charleston",t:"Referral"}
+    ]);
+  }
+  if (s.specs.indexOf("gambling") > -1){
+    add("Gambling", nc ? [
+      {n:"NC Problem Gambling Helpline",d:"Free, includes up to 12 no-cost counseling sessions",t:"877-718-5543"}
+    ] : [
+      {n:"BHDD gambling addiction services",d:"Through substance use services",t:"803-896-5555"},
+      {n:"National Problem Gambling Helpline",d:"24/7",t:"800-522-4700"}
+    ]);
+  }
+  if (s.specs.indexOf("violence") > -1){
+    add("Violence and assault", [
+      {n:"National Domestic Violence Hotline",d:"Or text START to 88788",t:"800-799-7233"},
+      {n:"RAINN Sexual Assault Hotline",d:"Connects to the local rape crisis center",t:"800-656-4673"}
+    ], "Ask about safety at home before sending written material to a shared address or phone.");
+  }
+  return cards;
+}
+
+function subList(items){
+  if (!items || !items.length) return "";
+  var h = '<ul class="sublist">';
+  items.forEach(function(i){
+    h += '<li><span class="n">' + esc(i.n) + '</span><span class="t">' + esc(i.t) + '</span>'
+       + (i.d ? '<span class="d">' + esc(i.d) + '</span>' : '') + '</li>';
+  });
+  return h + "</ul>";
+}
+
+function esc(t){
+  return String(t).replace(/[&<>"']/g, function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+  });
+}
+
+function render(){
+  var s = readState();
+  var out = "";
+
+  var door = publicDoor(s);
+  var lg = locGuidance(s);
+  var pc = payerCard(s);
+
+  if (s.loc === "crisis"){
+    out += '<div class="card lead"><p class="ctag">Start here</p><h3>' + esc(lg.g.h) + '</h3>'
+         + '<p>' + esc(lg.g.p) + '</p>'
+         + '<div class="say"><b>On the call:</b> ' + esc(lg.g.say) + '</div>'
+         + subList(lg.extra) + '</div>';
+  }
+
+  if (door){
+    out += '<div class="card' + (s.loc === "crisis" ? '' : ' lead') + '"><p class="ctag">' + esc(door.tag) + '</p>'
+         + '<h3>' + esc(door.name) + '</h3><p>' + esc(door.meta) + '</p><div class="nums">';
+    door.nums.forEach(function(n){
+      out += '<span class="num"><span class="k">' + esc(n[0]) + '</span><span class="v">' + esc(n[1]) + '</span></span>';
+    });
+    out += '</div>';
+    if (door.merging) out += '<span class="flag">Partners and Vaya are consolidating this month. Verify this number before giving it out.</span>';
+    out += '</div>';
+  }
+
+  if (s.loc !== "crisis"){
+    out += '<div class="card"><p class="ctag">Level of care</p><h3>' + esc(lg.g.h) + '</h3>'
+         + '<p>' + esc(lg.g.p) + '</p>'
+         + '<div class="say"><b>On the call:</b> ' + esc(lg.g.say) + '</div>'
+         + subList(lg.extra) + '</div>';
+  }
+
+  out += '<div class="card"><p class="ctag">' + esc(pc.tag) + '</p><h3>' + esc(pc.name) + '</h3>'
+       + '<p>' + esc(pc.meta) + '</p><p>' + esc(pc.p) + '</p>'
+       + '<div class="say"><b>On the call:</b> ' + esc(pc.say) + '</div>'
+       + subList(pc.extra) + '</div>';
+
+  var ae = ageExtras(s);
+  if (ae.length){
+    out += '<div class="card"><p class="ctag">Age-specific</p><h3>' + esc(AGE_LABEL[s.age]) + '</h3>' + subList(ae) + '</div>';
+  }
+
+  specCards(s).forEach(function(c){
+    out += '<div class="card"><p class="ctag">Specialty</p><h3>' + esc(c.h) + '</h3>' + subList(c.items)
+         + (c.note ? '<div class="say">' + esc(c.note) + '</div>' : '') + '</div>';
+  });
+
+  $("results").innerHTML = out;
+
+  var sc = s.state === "SC";
+  $("mcNum").textContent = sc ? "833-364-2274" : (door ? door.nums[door.nums.length - 1][1] : "988");
+  $("mcLbl").textContent = sc ? "SC mobile crisis" : (door ? "county crisis line" : "crisis line");
+}
+
+function plainText(){
+  var s = readState();
+  var lines = [];
+  lines.push("REFERRAL ROUTING — " + s.county + " County, " + s.state);
+  lines.push("Coverage: " + PAYER_LABEL[s.payer] + "  |  Age: " + AGE_LABEL[s.age] + "  |  Level: " + LOC_LABEL[s.loc]);
+  if (s.specs.length) lines.push("Specialty: " + s.specs.map(function(k){ return SPEC_LABEL[k]; }).join(", "));
+  lines.push("");
+
+  var nodes = document.querySelectorAll("#results .card");
+  Array.prototype.forEach.call(nodes, function(card){
+    var tag = card.querySelector(".ctag"), h = card.querySelector("h3");
+    lines.push((tag ? tag.textContent.toUpperCase() + ": " : "") + (h ? h.textContent : ""));
+    Array.prototype.forEach.call(card.querySelectorAll(".num"), function(n){
+      lines.push("  " + n.querySelector(".k").textContent + ": " + n.querySelector(".v").textContent);
+    });
+    Array.prototype.forEach.call(card.querySelectorAll(".sublist li"), function(li){
+      lines.push("  " + li.querySelector(".n").textContent + " — " + li.querySelector(".t").textContent);
+    });
+    lines.push("");
+  });
+
+  lines.push("Crisis, any coverage: 911 · 988 · text HOME to 741741");
+  lines.push("Routing verified Oct 2026. Confirm before giving to a patient. No patient information in this tool.");
+  return lines.join("\n");
+}
+
+function copyText(text, btn, okLabel){
+  var original = btn.textContent;
+  var done = function(msg){
+    btn.textContent = msg;
+    setTimeout(function(){ btn.textContent = original; }, 1800);
+  };
+  try {
+    navigator.clipboard.writeText(text).then(function(){ done(okLabel); }, function(){ fallback(); });
+  } catch (e) { fallback(); }
+  function fallback(){
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed"; ta.style.top = "0"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    done("Selected — press Ctrl+C");
+    setTimeout(function(){ ta.remove(); }, 6000);
+  }
+}
+
+/* Device-local tally */
+var KEY = "optimed-router-tally-v1";
+function loadTally(){
+  try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch (e) { return []; }
+}
+function saveTally(rows){
+  try { localStorage.setItem(KEY, JSON.stringify(rows)); } catch (e) {}
+}
+function renderTally(){
+  var rows = loadTally(), box = $("tallyBody");
+  if (!rows.length){
+    box.innerHTML = '<p class="empty">No referrals logged on this device yet. Log one to see the pattern build.</p>';
+    return;
+  }
+  var agg = {};
+  rows.forEach(function(r){
+    var k = r.state + "|" + r.county + "|" + r.loc + "|" + (r.specs || "");
+    agg[k] = (agg[k] || 0) + 1;
+  });
+  var keys = Object.keys(agg).sort(function(a, b){ return agg[b] - agg[a]; });
+  var h = '<table><thead><tr><th>County</th><th>Level of care</th><th>Specialty</th><th style="text-align:right">Count</th></tr></thead><tbody>';
+  keys.forEach(function(k){
+    var p = k.split("|");
+    h += '<tr><td>' + esc(p[1]) + ", " + esc(p[0]) + '</td><td>' + esc(LOC_LABEL[p[2]] || p[2]) + '</td><td>'
+       + esc(p[3] || "—") + '</td><td class="c">' + agg[k] + '</td></tr>';
+  });
+  box.innerHTML = h + '</tbody></table>';
+}
+
+$("state").addEventListener("change", function(){
+  fillCounties($("state").value, $("state").value === "NC" ? "Mecklenburg" : "York");
+  touched = true; $("exampleTag").hidden = true; render();
+});
+$("form").addEventListener("change", function(e){
+  if (e.target.id === "state") return;
+  touched = true; $("exampleTag").hidden = true; render();
+});
+$("copyBtn").addEventListener("click", function(){ copyText(plainText(), this, "Copied"); });
+$("logBtn").addEventListener("click", function(){
+  var s = readState(), rows = loadTally();
+  rows.push({
+    state: s.state, county: s.county, loc: s.loc,
+    specs: s.specs.map(function(k){ return SPEC_LABEL[k]; }).join(", "),
+    at: new Date().toISOString().slice(0, 10)
+  });
+  saveTally(rows); renderTally();
+  this.textContent = "Logged";
+  var b = this;
+  setTimeout(function(){ b.textContent = "Log this referral"; }, 1500);
+});
+$("copyTally").addEventListener("click", function(){
+  var rows = loadTally();
+  if (!rows.length){ copyText("No referrals logged.", this, "Copied"); return; }
+  var csv = "date,state,county,level_of_care,specialty\n" + rows.map(function(r){
+    return [r.at, r.state, r.county, LOC_LABEL[r.loc] || r.loc, '"' + (r.specs || "") + '"'].join(",");
+  }).join("\n");
+  copyText(csv, this, "Copied");
+});
+$("clearTally").addEventListener("click", function(){
+  saveTally([]); renderTally();
+  this.textContent = "Cleared";
+  var b = this;
+  setTimeout(function(){ b.textContent = "Clear"; }, 1500);
+});
+
+fillCounties("NC", "Mecklenburg");
+render();
+renderTally();
+</script>
+</body>
+</html>
